@@ -1,0 +1,49 @@
+import csv
+import os
+
+def convert_csv_to_sigma(csv_filename, output_directory):
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+    
+    with open(csv_filename, "r") as csv_file:
+        reader = csv.DictReader(csv_file)
+        rules = {}
+        
+        for row in reader:
+            ioc_type = row["type"].lower()  # e.g., "domain", "ip", "hash"
+            ioc_value = row["value"]
+            
+            if ioc_type not in rules:
+                rules[ioc_type] = []
+            
+            rules[ioc_type].append(ioc_value)
+        
+        for ioc_type, values in rules.items():
+            sigma_rule = f"""title: Detect {ioc_type} IOCs
+id: {ioc_type}-ioc-detection
+status: experimental
+description: Detects known {ioc_type} IOCs
+references:
+    - Generated from CSV
+author: Automated Script
+date: 2025-03-03
+tags:
+    - attack.ia:securityonion
+detection:
+    selection:
+        {ioc_type}:
+            - {"\n            - ".join(values)}
+    condition: selection
+falsepositives:
+    - Unknown
+level: high
+"""
+            
+            sigma_filename = os.path.join(output_directory, f"{ioc_type}_ioc.yml")
+            with open(sigma_filename, "w") as sigma_file:
+                sigma_file.write(sigma_rule)
+                
+            print(f"Sigma rule generated: {sigma_filename}")
+
+# Usage
+convert_csv_to_sigma("iocs.csv", "sigma_rules")
